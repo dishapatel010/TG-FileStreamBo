@@ -3,13 +3,13 @@ package commands
 import (
 	"EverythingSuckz/fsb/config"
 	"EverythingSuckz/fsb/internal/utils"
-	"fmt"
+	"log"
 
 	"github.com/celestix/gotgproto/dispatcher"
 	"github.com/celestix/gotgproto/dispatcher/handlers"
 	"github.com/celestix/gotgproto/ext"
 	"github.com/celestix/gotgproto/storage"
-	"github.com/celestix/gotgproto/tg"
+	"github.com/gotd/td/tg"
 )
 
 func (m *command) LoadStart(dispatcher dispatcher.Dispatcher) {
@@ -22,58 +22,47 @@ func start(ctx *ext.Context, u *ext.Update) error {
 	chatId := u.EffectiveChat().GetID()
 	peerChatId := ctx.PeerStorage.GetPeerById(chatId)
 
-	// Check if the peer is a user
+	// Ensure the user is valid
 	if peerChatId.Type != int(storage.TypeUser) {
 		return dispatcher.EndGroups
 	}
 
-	// Check if the user is in the allowed list
+	// Check if user is in the allowed list (Optional, part of your existing logic)
 	if len(config.ValueOf.AllowedUsers) != 0 && !utils.Contains(config.ValueOf.AllowedUsers, chatId) {
 		ctx.Reply(u, "You are not allowed to use this bot.", nil)
 		return dispatcher.EndGroups
 	}
 
-	// Channel ID where the bot checks for membership
-	const channelId int64 = -1002108741045
-
-	// Check if the user is a member of the required channel
-	member, err := GetChannelMember(ctx, channelId, chatId)
+	// Force subscription check
+	requiredChannel := "@your_channel_username" // Replace with your channel's username or ID
+	inputChannel, err := ctx.PeerStorage.GetInputPeerByUsername(requiredChannel)
 	if err != nil {
-		ctx.Logger().Error("Failed to get channel member", "error", err)
-		ctx.Reply(u, "Could not verify your channel membership. Please try again later.", nil)
-		return dispatcher.EndGroups
-	}
-	if member == nil {
-		ctx.Reply(u, "You must be a member of the required channel to use this bot.", nil)
+		ctx.Reply(u, "Unable to check subscription status. Please try again later.", nil)
 		return dispatcher.EndGroups
 	}
 
-	// Successful response
-	ctx.Reply(u, "Hi, send me any file to get a direct streamable link to that file.", nil)
-	return dispatcher.EndGroups
-}
-
-// GetChannelMember checks if a user is a member of a specific channel or supergroup
-func GetChannelMember(ctx *ext.Context, chatId, userId int64) (*tg.ChannelsChannelParticipant, error) {
-	// Retrieve channel peer
-	channel := ctx.PeerStorage.GetInputPeerById(chatId)
-	peerChannel, ok := channel.(*tg.InputPeerChannel)
-	if !ok {
-		return nil, fmt.Errorf("unsupported peer type %T", channel)
-	}
-
-	// Retrieve user peer
-	user := ctx.PeerStorage.GetInputPeerById(userId)
-
-	// Perform the request
-	return ctx.Raw.ChannelsGetParticipant(
-		ctx,
-		&tg.ChannelsGetParticipantRequest{
-			Channel: &tg.InputChannel{
-				ChannelID:  peerChannel.ChannelID,
-				AccessHash: peerChannel.AccessHash,
-			},
-			Participant: user,
+	// Call the channels.getParticipant method
+	response, err := ctx.Raw.ChannelsGetParticipant(ctx, &tg.ChannelsGetParticipantRequest{
+		Channel: inputChannel,
+		UserID:  &tg.InputUser{
+			UserID:     peerChatId.ID,
+			AccessHash: peerChatId.AccessHash,
 		},
-	)
+	})
+	if err != nil {
+		ctx.Reply(u, "Failed to verify subscription. Please make sure you are subscribed to our channel.", nil)
+		return dispatcher.EndGroups
+	}
+
+	// Check subscription status
+	if participant, ok := response.Participant.(*tg.ChannelParticipant); ok {
+		log.Printf("User %d is a participant: %+v", chatId, participant)
+		// User is subscribed
+		ctx.Reply(u, "Hi, send me any file to get a direct streamable link to that file.", nil)
+		return dispatcher.EndGroups
+	}
+
+	// User is not subscribed
+	ctx.Reply(u, "You must join our channel @your_channel_username to use this bot.", nil)
+	return dispatcher.EndGroups
 }
