@@ -3,6 +3,7 @@ package commands
 import (
 	"EverythingSuckz/fsb/config"
 	"EverythingSuckz/fsb/internal/utils"
+	"fmt"
 
 	"github.com/celestix/gotgproto/dispatcher"
 	"github.com/celestix/gotgproto/dispatcher/handlers"
@@ -34,38 +35,44 @@ func start(ctx *ext.Context, u *ext.Update) error {
 
 	// Force subscription check using channel ID
 	requiredChannelID := int64(-1002108741045) // Replace with your actual channel ID
-	inputChannel := &tg.InputChannel{
-		ChannelID:  requiredChannelID,
-		AccessHash: 0, // Typically 0 for public channels
+	inputChannel, ok := ctx.PeerStorage.GetInputPeerById(requiredChannelID).(*tg.InputPeerChannel)
+	if !ok {
+		ctx.Reply(u, "Error: Could not resolve the input channel.", nil)
+		return dispatcher.EndGroups
 	}
 
 	// Create an InputUser object for the user
-	inputUser := &tg.InputUser{
-		UserID:     peerChatId.ID,
-		AccessHash: peerChatId.AccessHash,
+	inputUser, ok := ctx.PeerStorage.GetInputPeerById(peerChatId.ID).(*tg.InputPeerUser)
+	if !ok {
+		ctx.Reply(u, "Error: Could not resolve the user input peer.", nil)
+		return dispatcher.EndGroups
 	}
 
 	// Call the channels.getParticipant method
 	response, err := ctx.Raw.ChannelsGetParticipant(ctx, &tg.ChannelsGetParticipantRequest{
-		Channel: inputChannel,
+		Channel: &tg.InputChannel{
+			ChannelID:  inputChannel.ChannelID,
+			AccessHash: inputChannel.AccessHash,
+		},
 		Participant: &tg.InputPeerUser{
 			UserID:     inputUser.UserID,
 			AccessHash: inputUser.AccessHash,
 		},
 	})
 	if err != nil {
-		ctx.Reply(u, "Failed to verify subscription. Please make sure you are subscribed to our channel.", nil)
+		ctx.Reply(u, fmt.Sprintf("Failed to verify subscription. Error: %v", err), nil)
 		return dispatcher.EndGroups
 	}
 
 	// Check subscription status
-	if _, ok := response.Participant.(*tg.ChannelParticipant); ok {
+	switch participant := response.Participant.(type) {
+	case *tg.ChannelParticipant:
 		// User is subscribed
 		ctx.Reply(u, "Hi, send me any file to get a direct streamable link to that file.", nil)
 		return dispatcher.EndGroups
+	default:
+		// User is not subscribed
+		ctx.Reply(u, "You must join our channel to use this bot: https://t.me/your_channel_username", nil)
+		return dispatcher.EndGroups
 	}
-
-	// User is not subscribed
-	ctx.Reply(u, "You must join our channel to use this bot: https://t.me/your_channel_username", nil)
-	return dispatcher.EndGroups
 }
