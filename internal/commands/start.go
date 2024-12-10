@@ -33,20 +33,25 @@ func start(ctx *ext.Context, u *ext.Update) error {
 		return dispatcher.EndGroups
 	}
 
-	// Force subscription check
-	requiredChannel := "@your_channel_username" // Replace with your channel's username or ID
-	inputChannel, err := ctx.PeerStorage.GetInputPeerByUsername(requiredChannel)
-	if err != nil {
-		ctx.Reply(u, "Unable to check subscription status. Please try again later.", nil)
-		return dispatcher.EndGroups
+	// Force subscription check using channel ID
+	requiredChannelID := int64(-1002108741045) // Replace with your actual channel ID
+	inputChannel := &tg.InputChannel{
+		ChannelID:  requiredChannelID,
+		AccessHash: 0, // Typically 0 for public channels
+	}
+
+	// Create an InputUser object for the user
+	inputUser := &tg.InputUser{
+		UserID:     peerChatId.ID,
+		AccessHash: peerChatId.AccessHash,
 	}
 
 	// Call the channels.getParticipant method
 	response, err := ctx.Raw.ChannelsGetParticipant(ctx, &tg.ChannelsGetParticipantRequest{
 		Channel: inputChannel,
-		UserID:  &tg.InputUser{
-			UserID:     peerChatId.ID,
-			AccessHash: peerChatId.AccessHash,
+		Participant: &tg.InputPeerUser{
+			UserID:     inputUser.UserID,
+			AccessHash: inputUser.AccessHash,
 		},
 	})
 	if err != nil {
@@ -55,14 +60,13 @@ func start(ctx *ext.Context, u *ext.Update) error {
 	}
 
 	// Check subscription status
-	if participant, ok := response.Participant.(*tg.ChannelParticipant); ok {
-		log.Printf("User %d is a participant: %+v", chatId, participant)
+	if _, ok := response.Participant.(*tg.ChannelParticipant); ok {
 		// User is subscribed
 		ctx.Reply(u, "Hi, send me any file to get a direct streamable link to that file.", nil)
 		return dispatcher.EndGroups
 	}
 
 	// User is not subscribed
-	ctx.Reply(u, "You must join our channel @your_channel_username to use this bot.", nil)
+	ctx.Reply(u, "You must join our channel to use this bot: https://t.me/your_channel_username", nil)
 	return dispatcher.EndGroups
 }
