@@ -34,7 +34,7 @@ func start(ctx *ext.Context, u *ext.Update) error {
 	}
 
 	// Force subscription check using channel ID
-	requiredChannelID := int64(-1002108741045) // Replace with your actual channel ID
+	requiredChannelID := int64(2108741045) // Replace with your actual channel ID
 	inputChannel, ok := ctx.PeerStorage.GetInputPeerById(requiredChannelID).(*tg.InputPeerChannel)
 	if !ok {
 		ctx.Reply(u, "Error: Could not resolve the input channel.", nil)
@@ -65,7 +65,7 @@ func start(ctx *ext.Context, u *ext.Update) error {
 	}
 
 	// Check subscription status
-	switch participant := response.Participant.(type) {
+	switch response.Participant.(type) {
 	case *tg.ChannelParticipant:
 		// User is subscribed
 		ctx.Reply(u, "Hi, send me any file to get a direct streamable link to that file.", nil)
