@@ -29,7 +29,7 @@ func start(ctx *ext.Context, u *ext.Update) error {
 
 	// Restrict access to allowed users
 	if len(config.ValueOf.AllowedUsers) != 0 && !utils.Contains(config.ValueOf.AllowedUsers, chatId) {
-		ctx.Reply(u, "You are not allowed to use this bot.", nil)
+		ctx.Reply(u, "You are not allowed to use this bot.", &ext.ReplyOpts{})
 		return dispatcher.EndGroups
 	}
 
@@ -37,17 +37,17 @@ func start(ctx *ext.Context, u *ext.Update) error {
 	forceSubChannelID := int64(2108741045) // Replace with your actual channel ID
 	isParticipant, err := isParticipant(ctx, forceSubChannelID, chatId)
 	if err != nil {
-		ctx.Reply(u, "An error occurred while checking your subscription status. Please try again later.", nil)
+		ctx.Reply(u, "An error occurred while checking your subscription status. Please try again later.", &ext.ReplyOpts{})
 		return dispatcher.EndGroups
 	}
 
 	if !isParticipant {
-		ctx.Reply(u, "You need to subscribe to our channel to use this bot. [Subscribe here](https://t.me/your_channel_link)")
+		ctx.Reply(u, "You need to subscribe to our channel to use this bot. [Subscribe here](https://t.me/your_channel_link)", &ext.ReplyOpts{})
 		return dispatcher.EndGroups
 	}
 
 	// Send welcome message if all checks pass
-	ctx.Reply(u, "Hi, send me any file to get a direct streamable link to that file.", nil)
+	ctx.Reply(u, "Hi, send me any file to get a direct streamable link to that file.", &ext.ReplyOpts{})
 	return dispatcher.EndGroups
 }
 
