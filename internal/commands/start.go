@@ -65,24 +65,14 @@ func isParticipant(ctx *ext.Context, chatID, userID int64) (bool, error) {
         Participant: ctx.PeerStorage.GetInputPeerById(userID),
     })
     if err != nil {
-        log.Errorw("Failed to get participant",
-            "chatID", chatID,
-            "userID", userID,
-            "error", err)
         return false, fmt.Errorf("failed to get participant: %v", err)
     }
 
     // Check participant type
     switch cp.GetParticipant().(type) {
     case *tg.ChannelParticipantLeft, *tg.ChannelParticipantBanned:
-        log.Infow("User is not a participant",
-            "chatID", chatID,
-            "userID", userID)
         return false, nil
     default:
-        log.Infow("User is a participant",
-            "chatID", chatID,
-            "userID", userID)
         return true, nil
     }
 }
