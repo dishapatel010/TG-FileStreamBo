@@ -42,9 +42,7 @@ func start(ctx *ext.Context, u *ext.Update) error {
 	}
 
 	if !isParticipant {
-		ctx.Reply(u, "You need to subscribe to our channel to use this bot. [Subscribe here](https://t.me/your_channel_link)", map[string]interface{}{
-			"parse_mode": "Markdown",
-		})
+		ctx.Reply(u, "You need to subscribe to our channel to use this bot. [Subscribe here](https://t.me/your_channel_link)")
 		return dispatcher.EndGroups
 	}
 
