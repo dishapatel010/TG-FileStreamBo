@@ -52,27 +52,37 @@ func start(ctx *ext.Context, u *ext.Update) error {
 }
 
 func isParticipant(ctx *ext.Context, chatID, userID int64) (bool, error) {
-	channelPeer := ctx.PeerStorage.GetPeerById(chatID)
-	if channelPeer == nil {
-		return false, fmt.Errorf("channel not found")
-	}
+    channelPeer := ctx.PeerStorage.GetPeerById(chatID)
+    if channelPeer == nil {
+        return false, fmt.Errorf("channel not found")
+    }
 
-	cp, err := ctx.Raw.ChannelsGetParticipant(ctx, &tg.ChannelsGetParticipantRequest{
-		Channel: &tg.InputChannel{
-			ChannelID:  channelPeer.ID,
-			AccessHash: channelPeer.AccessHash,
-		},
-		Participant: ctx.PeerStorage.GetInputPeerById(userID),
-	})
-	if err != nil {
-		return false, fmt.Errorf("failed to get participant: %v", err)
-	}
+    cp, err := ctx.Raw.ChannelsGetParticipant(ctx, &tg.ChannelsGetParticipantRequest{
+        Channel: &tg.InputChannel{
+            ChannelID:  channelPeer.ID,
+            AccessHash: channelPeer.AccessHash,
+        },
+        Participant: ctx.PeerStorage.GetInputPeerById(userID),
+    })
+    if err != nil {
+        log.Errorw("Failed to get participant",
+            "chatID", chatID,
+            "userID", userID,
+            "error", err)
+        return false, fmt.Errorf("failed to get participant: %v", err)
+    }
 
-	// Check participant type
-	switch cp.GetParticipant().(type) {
-	case *tg.ChannelParticipantLeft, *tg.ChannelParticipantBanned:
-		return false, nil
-	default:
-		return true, nil
-	}
+    // Check participant type
+    switch cp.GetParticipant().(type) {
+    case *tg.ChannelParticipantLeft, *tg.ChannelParticipantBanned:
+        log.Infow("User is not a participant",
+            "chatID", chatID,
+            "userID", userID)
+        return false, nil
+    default:
+        log.Infow("User is a participant",
+            "chatID", chatID,
+            "userID", userID)
+        return true, nil
+    }
 }
